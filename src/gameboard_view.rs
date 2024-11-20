@@ -1,4 +1,5 @@
 use crate::consts::*;
+use crate::gameboard::CellKind;
 use crate::gameboard_controller::GameboardController;
 use graphics::types::Color;
 use graphics::{line, Context, Graphics};
@@ -9,13 +10,12 @@ pub struct GameboardViewSettings {
     pub height: f64,
     pub width: f64,
 
-    pub background_color: Color,
+    pub board_background_color: Color,
+    pub board_edge_color: Color,
+    pub board_edge_radius: f64,
 
     pub cell_edge_color: Color,
     pub cell_edge_radius: f64,
-
-    pub board_edge_color: Color,
-    pub board_edge_radius: f64,
 }
 
 impl GameboardViewSettings {
@@ -25,13 +25,12 @@ impl GameboardViewSettings {
             height: (CELL_HEIGHT_COUNT * CELL_SIZE) as f64,
             width: (CELL_WIDTH_COUNT * CELL_SIZE) as f64,
 
-            background_color: [0.0, 0.0, 0.0, 1.0],
-
-            cell_edge_color: [1.0, 1.0, 1.0, 0.5],
-            cell_edge_radius: 1.0,
-
-            board_edge_color: [1.0, 1.0, 1.0, 1.0],
+            board_background_color: [0.0, 0.0, 0.0, 1.0],
+            board_edge_color: [1.0, 1.0, 1.0, 0.25],
             board_edge_radius: 1.0,
+
+            cell_edge_color: [1.0, 1.0, 1.0, 0.25],
+            cell_edge_radius: 1.0,
         }
     }
 }
@@ -63,24 +62,44 @@ impl GameboardView {
             settings.width,
             settings.height,
         ];
-        Rectangle::new(settings.background_color).draw(board_rect, &c.draw_state, c.transform, g);
+        Rectangle::new(settings.board_background_color).draw(
+            board_rect,
+            &c.draw_state,
+            c.transform,
+            g,
+        );
 
         // Declare the format for cell and section lines.
         let cell_edge = Line::new(settings.cell_edge_color, settings.cell_edge_radius);
 
-        for i in 0..CELL_HEIGHT_COUNT {
-            let y = settings.position[1] + i as f64 / CELL_HEIGHT_COUNT as f64 * settings.height;
-
+        for height in 0..CELL_HEIGHT_COUNT {
+            let y =
+                settings.position[1] + height as f64 / CELL_HEIGHT_COUNT as f64 * settings.height;
             let hline = [settings.position[0], y, max_x, y];
-
             cell_edge.draw(hline, &c.draw_state, c.transform, g);
-        }
-        for i in 0..CELL_WIDTH_COUNT {
-            let x = settings.position[0] + i as f64 / CELL_WIDTH_COUNT as f64 * settings.width;
-            
-            let yline = [x, settings.position[1], x, max_y];
-            
-            cell_edge.draw(yline, &c.draw_state, c.transform, g);
+
+            for width in 0..CELL_WIDTH_COUNT {
+                let x =
+                    settings.position[0] + width as f64 / CELL_WIDTH_COUNT as f64 * settings.width;
+                let yline = [x, settings.position[1], x, max_y];
+                cell_edge.draw(yline, &c.draw_state, c.transform, g);
+
+                // draw tetrominoes
+                let cell = controller.gameboard.cells[height][width];
+                if let Some(ucell) = cell {
+                    let rect: Rectangle = match ucell {
+                        CellKind::I => Rectangle::new([0.0, 1.0, 1.0, 0.75]),
+                        CellKind::O => Rectangle::new([1.0, 1.0, 0.0, 0.75]),
+                        CellKind::T => Rectangle::new([1.0, 0.0, 1.0, 0.75]),
+                        CellKind::J => Rectangle::new([0.0, 0.0, 1.0, 0.75]),
+                        CellKind::L => Rectangle::new([1.0, 0.5, 0.0, 0.75]),
+                        CellKind::S => Rectangle::new([0.0, 1.0, 0.0, 0.75]),
+                        CellKind::Z => Rectangle::new([1.0, 0.0, 0.0, 0.75]),
+                    };
+                    let cell_rect = [y + 1.0, x + 1.0, CELL_SIZE as f64, CELL_SIZE as f64];
+                    rect.draw(cell_rect, &c.draw_state, c.transform, g);
+                }
+            }
         }
 
         // Draw board edge.
